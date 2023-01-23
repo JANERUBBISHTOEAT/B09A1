@@ -8,6 +8,7 @@
 #include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <utmp.h>
+#include <paths.h>
 #include <unistd.h>
 
 void sysInfo()
@@ -85,39 +86,32 @@ void userInfo()
     //     char __unused[20];            /* Reserved for future use */
     // };
 
-    struct utmp user_info;
-    struct utmp *user_info_ptr = &user_info;
-    // Open utmp file
-    FILE *file = fopen("/var/run/utmp", "r");
-    if (file == NULL)
-    {
-        printf("Error opening utmp file!\n");
-        return -1;
-    }
+    struct utmp *user_info_ptr = malloc(sizeof(struct utmp));
     // Get user info
-    user_info_ptr = getutent();
-    printf("Success getting user info!\n\n");
-    printf("%d\n", getutent_r(user_info_ptr, &user_info_ptr));
-    
-        printf("User:\t%s\t", user_info.ut_user);
-        printf("PID:\t%d\t", user_info.ut_pid);
-        printf("Session:\t%d\t", user_info.ut_session); //%ld
-
     setutent();
+    user_info_ptr = getutent();
+    printf("Trying to get user info...\n");
+    printf("User:\t%s\t", user_info_ptr->ut_user);
+    printf("PID:\t%d\t", user_info_ptr->ut_pid);
+    printf("Session:\t%d\t", user_info_ptr->ut_session); //%ld
 
-    while (getutent_r(user_info_ptr, &user_info_ptr) != -1)
+    printf("\nSuccess getting user info!\n\n");
+
+    while ((user_info_ptr = getutent()) != NULL)
     {
         // Print Session/User Info
-        printf("User:\t%s\t", user_info.ut_user);
-        printf("PID:\t%d\t", user_info.ut_pid);
-        printf("Session:\t%d\t", user_info.ut_session); //%ld
-        printf("Time:\t%d\t", user_info.ut_tv.tv_sec); //%ld
-        printf("Host:\t%s\t", user_info.ut_host);
-        printf("Line:\t%s\t", user_info.ut_line);
-        printf("ID:\t%s\t", user_info.ut_id);
+        printf("User:\t%s\t", user_info_ptr->ut_user);
+        printf("PID:\t%d\t", user_info_ptr->ut_pid);
+        printf("Session:\t%d\t", user_info_ptr->ut_session); //%ld
+        printf("Time:\t%d\t", user_info_ptr->ut_tv.tv_sec);
+        printf("Host:\t%s\t", user_info_ptr->ut_host);
+        printf("Line:\t%s\t", user_info_ptr->ut_line);
+        printf("ID:\t%s\t", user_info_ptr->ut_id);
 
         printf("\n");
     }
+
+    endutent();
 }
 
 void graph(bool seq, int samples, double tdelay)
