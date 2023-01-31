@@ -7,13 +7,14 @@
 #include <sys/resource.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <utmp.h>
 #include <paths.h>
 #include <unistd.h>
 
 void MemoryInfo()
 {
-    printf("### Memory Usage ###\n");
+    // printf("### Memory Usage ###\n");
 
     struct sysinfo mem_info;
     sysinfo(&mem_info);
@@ -27,26 +28,35 @@ void MemoryInfo()
             (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
 }
 
-void CPUInfo()
+void CPUInfo(double tdelay)
 {
-    printf("### CPU Usage ###\n");
+    // printf("### CPU Usage ###\n");
     // Template:
     // Number of cores: 4 
     // total cpu use = 0.00%
 
-    // Get total number of cores
-    int cores = sysconf(_SC_NPROCESSORS_ONLN);
-    printf("Number of cores: %d", cores);
+    FILE *f = fopen("/proc/stat", "r");
+    int tmp;
+    int system_time, user_time, idle_time;
+    fscanf(f, "cpu %d %d %d %d", &user_time, &tmp, &system_time, &idle_time);
+    fclose(f);
+    printf("sys=%d, user=%d, idle=%d\n", system_time, user_time, idle_time);
+    printf("total cpu use = %5.2f%%\n", (double)((system_time + user_time) / (system_time + user_time + idle_time) * 100));
+    
 
-    // Get total CPU usage
-    struct rusage usage;
-    getrusage(RUSAGE_SELF, &usage);
-    printf("total cpu use = %ld", usage.ru_utime.tv_sec + usage.ru_stime.tv_sec);
+    // // Get total number of cores
+    // int cores = sysconf(_SC_NPROCESSORS_ONLN);
+    // printf("Number of cores: %d\n", cores);
+
+    // // Get total CPU usage
+    // struct rusage usage;
+    // getrusage(RUSAGE_SELF, &usage);
+    // printf("total cpu use = %5.2f%%\n", usage.stime.tv_usec
 }
 
 void sysInfo()
 {
-    printf("### System Usage ###\n");
+    printf("\n### System Usage ###\n");
 
     struct utsname sys_info;
     uname(&sys_info);
@@ -54,16 +64,13 @@ void sysInfo()
     printf("Machine Name:\t%s\n", sys_info.nodename);
     printf("Version:\t%s\n", sys_info.version);
     printf("Release:\t%s\n", sys_info.release);
-#ifdef _GNU_SOURCE
-    printf("Domain Name:\t%s\n", sys_info.domainname);
-#endif
     printf("Architecture:\t%s\n", sys_info.machine);
 }
 
 // Session/User Info
 int userInfo()
 {
-    printf("### User Usage ###\n");
+    // printf("### User Usage ###\n");
 
     struct utmp *user_info_ptr = malloc(sizeof(struct utmp));
     // Get user info
@@ -103,9 +110,9 @@ void graph(bool seq, int samples, double tdelay)
 
 void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double tdelay)
 {
-    printf("Samples: %d, Delay: %f\n", samples, tdelay);
+    printf("Samples: %d, Delay: %.2f\n", samples, tdelay);
 
-    if (!seq)
+    if (seq)
     {
         for (int i = 0; i < samples; i++)
         {
@@ -114,35 +121,39 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (user)
                 userInfo();
             if (sys)
-                CPUInfo();
-            if (graphic)
-                graph(seq, samples, tdelay);
+                CPUInfo(tdelay);
             sleep(tdelay);
             printf("\n");
         }
     }
     else
     {
+        printf("\033[2J"); // Clear screen
         int user_count = 0;
         for (int i = 0; i < samples; i++)
         {
-            printf("ESC[H"); // Go to (0, 0)
+            printf("\033[H"); // Go to (0, 0)
             if (sys)
             {
+                printf("\n### Memory Usage ### (Phys.Used/Tot -- Virtual Used/Tot)\n");
+                printf("\033[%dB", i + 1); // Go down (i + 1) lines (Already printed i lines)
                 MemoryInfo();
-                printf("\n" * (samples - i));
+                for (int j = 0; j < samples - i - 1; j++)
+                    printf("\n");
             }
             if (user)
             {
+                printf("\n### Session/Users ###\n");
                 user_count = userInfo();
             }
-            if (graphic)
+            if (sys)
             {
-                graph(seq, samples, tdelay);
+                printf("\n### CPU Usage ###\n");
+                CPUInfo(tdelay);
             }
             printf("\n");
+            sleep(tdelay);
         }
-        sleep(tdelay);
     }
     if (sys)
         sysInfo();
