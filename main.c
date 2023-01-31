@@ -11,27 +11,45 @@
 #include <paths.h>
 #include <unistd.h>
 
+void MemoryInfo()
+{
+    printf("### Memory Usage ###\n");
+
+    struct sysinfo mem_info;
+    sysinfo(&mem_info);
+
+    // Current / Total (Physical) Memory Usage
+    printf("%5.2f GB / %5.2f GB --- ", (mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0, 
+            mem_info.totalram / 1024.0 / 1024.0 / 1024.0);
+    
+    // Current / Total (Physical + Swap) Memory Usage
+    printf("%5.2f GB / %5.2f GB\n", (mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0, 
+            (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
+}
+
+void CPUInfo()
+{
+    printf("### CPU Usage ###\n");
+    // Template:
+    // Number of cores: 4 
+    // total cpu use = 0.00%
+
+    // Get total number of cores
+    int cores = sysconf(_SC_NPROCESSORS_ONLN);
+    printf("Number of cores: %d", cores);
+
+    // Get total CPU usage
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+    printf("total cpu use = %ld", usage.ru_utime.tv_sec + usage.ru_stime.tv_sec);
+}
+
 void sysInfo()
 {
     printf("### System Usage ###\n");
 
-    //     struct utsname
-    //     {
-    //         char sysname[];  /* Operating system name (e.g., "Linux") */
-    //         char nodename[]; /* Name within "some implementation-defined
-    //                             network" */
-    //         char release[];  /* Operating system release
-    //                             (e.g., "2.6.28") */
-    //         char version[];  /* Operating system version */
-    //         char machine[];  /* Hardware identifier */
-    // #ifdef _GNU_SOURCE
-    //         char domainname[]; /* NIS or YP domain name */
-    // #endif
-    //     };
-
     struct utsname sys_info;
     uname(&sys_info);
-    printf("Success getting system info!\n\n");
     printf("System Name:\t%s\n", sys_info.sysname);
     printf("Machine Name:\t%s\n", sys_info.nodename);
     printf("Version:\t%s\n", sys_info.version);
@@ -43,81 +61,91 @@ void sysInfo()
 }
 
 // Session/User Info
-void userInfo()
+int userInfo()
 {
     printf("### User Usage ###\n");
-
-    // struct exit_status {              /* Type for ut_exit, below */
-    //     short e_termination;          /* Process termination status */
-    //     short e_exit;                 /* Process exit status */
-    // };
-
-    // struct utmp {
-    //     short   ut_type;              /* Type of record */
-    //     pid_t   ut_pid;               /* PID of login process */
-    //     char    ut_line[UT_LINESIZE]; /* Device name of tty - "/dev/" */
-    //     char    ut_id[4];             /* Terminal name suffix,
-    //                                     or inittab(5) ID */
-    //     char    ut_user[UT_NAMESIZE]; /* Username */
-    //     char    ut_host[UT_HOSTSIZE]; /* Hostname for remote login, or
-    //                                     kernel version for run-level
-    //                                     messages */
-    //     struct  exit_status ut_exit;  /* Exit status of a process
-    //                                     marked as DEAD_PROCESS; not
-    //                                     used by Linux init(1) */
-    //     /* The ut_session and ut_tv fields must be the same size when
-    //         compiled 32- and 64-bit.  This allows data files and shared
-    //         memory to be shared between 32- and 64-bit applications. */
-    // #if __WORDSIZE == 64 && defined __WORDSIZE_COMPAT32
-    //     int32_t ut_session;           /* Session ID (getsid(2)),
-    //                                     used for windowing */
-    //     struct {
-    //         int32_t tv_sec;           /* Seconds */
-    //         int32_t tv_usec;          /* Microseconds */
-    //     } ut_tv;                      /* Time entry was made */
-    // #else
-    //     long   ut_session;           /* Session ID */
-    //     struct timeval ut_tv;        /* Time entry was made */
-    // #endif
-
-    //     int32_t ut_addr_v6[4];        /* Internet address of remote
-    //                                     host; IPv4 address uses
-    //                                     just ut_addr_v6[0] */
-    //     char __unused[20];            /* Reserved for future use */
-    // };
 
     struct utmp *user_info_ptr = malloc(sizeof(struct utmp));
     // Get user info
     setutent();
-    user_info_ptr = getutent();
-    printf("Trying to get user info...\n");
-    printf("User:\t%s\t", user_info_ptr->ut_user);
-    printf("PID:\t%d\t", user_info_ptr->ut_pid);
-    printf("Session:\t%d\t", user_info_ptr->ut_session); //%ld
 
-    printf("\nSuccess getting user info!\n\n");
-
+    int user_count = 0;
     while ((user_info_ptr = getutent()) != NULL)
     {
         // Print Session/User Info
-        printf("User:\t%s\t", user_info_ptr->ut_user);
-        printf("PID:\t%d\t", user_info_ptr->ut_pid);
-        printf("Session:\t%d\t", user_info_ptr->ut_session); //%ld
-        printf("Time:\t%d\t", user_info_ptr->ut_tv.tv_sec);
-        printf("Host:\t%s\t", user_info_ptr->ut_host);
-        printf("Line:\t%s\t", user_info_ptr->ut_line);
-        printf("ID:\t%s\t", user_info_ptr->ut_id);
-
-        printf("\n");
+        // printf("User:\t%s\t", user_info_ptr->ut_user);
+        // printf("PID:\t%d\t", user_info_ptr->ut_pid);
+        // printf("Session:\t%d\t", user_info_ptr->ut_session); //%ld
+        // printf("Time:\t%d\t", user_info_ptr->ut_tv.tv_sec);
+        // printf("Host:\t%s\t", user_info_ptr->ut_host);
+        // printf("Line:\t%s\t", user_info_ptr->ut_line);
+        // printf("ID:\t%s\t", user_info_ptr->ut_id);
+        if (user_info_ptr->ut_type == USER_PROCESS)
+        {
+            printf("%s\t", user_info_ptr->ut_user);
+            printf("%s\t", user_info_ptr->ut_line);
+            printf(" (%s)", user_info_ptr->ut_host);
+            printf("\n");
+            user_count++;
+        }
     }
 
     endutent();
+    return user_count;
 }
+
 
 void graph(bool seq, int samples, double tdelay)
 {
     // testing args
     printf("seq: %d samples: %d tdelay: %f\n", seq, samples, tdelay);
+}
+
+void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double tdelay)
+{
+    printf("Samples: %d, Delay: %f\n", samples, tdelay);
+
+    if (!seq)
+    {
+        for (int i = 0; i < samples; i++)
+        {
+            if (sys)
+                MemoryInfo();
+            if (user)
+                userInfo();
+            if (sys)
+                CPUInfo();
+            if (graphic)
+                graph(seq, samples, tdelay);
+            sleep(tdelay);
+            printf("\n");
+        }
+    }
+    else
+    {
+        int user_count = 0;
+        for (int i = 0; i < samples; i++)
+        {
+            printf("ESC[H"); // Go to (0, 0)
+            if (sys)
+            {
+                MemoryInfo();
+                printf("\n" * (samples - i));
+            }
+            if (user)
+            {
+                user_count = userInfo();
+            }
+            if (graphic)
+            {
+                graph(seq, samples, tdelay);
+            }
+            printf("\n");
+        }
+        sleep(tdelay);
+    }
+    if (sys)
+        sysInfo();
 }
 
 int main(int argc, char *argv[])
@@ -137,7 +165,7 @@ int main(int argc, char *argv[])
     // No arguments, print usage
     if (argc == 1)
     {
-        printf("Usage: %s [arguments] [options]\n", argv[0]);
+        showOutput(true, true, false, false, 10, 1);
         return 1;
     }
 
@@ -219,9 +247,6 @@ int main(int argc, char *argv[])
                     return -1; // Invalid argument
                 }
             }
-
-            // Positional arguments: samples, delay
-            // ...
 
             graph(seq, samples, tdelay);
         }
