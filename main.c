@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <sys/utsname.h>
 #include <sys/resource.h>
@@ -44,6 +45,7 @@ void CPUInfo(double tdelay, int *last_CPU_time_ptr)
     fclose(f);
     printf("sys=%d, user=%d, idle=%d\n", system_time, user_time, idle_time);
     printf("last sys=%d, last user=%d, last idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
+    printf("delta sys=%d, delta user=%d, delta idle=%d\n", system_time - last_CPU_time_ptr[0], user_time - last_CPU_time_ptr[1], idle_time - last_CPU_time_ptr[2]);
     printf("total cpu use = %5.4f%%\n", (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1]) /
      (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0);
     last_CPU_time_ptr[0] = system_time;
@@ -71,7 +73,7 @@ void sysInfo()
 }
 
 // Session/User Info
-int userInfo()
+int userInfo(bool show_all)
 {
     // printf("### User Usage ###\n");
 
@@ -80,6 +82,7 @@ int userInfo()
     setutent();
 
     int user_count = 0;
+    int user_count_max = 10;
     while ((user_info_ptr = getutent()) != NULL)
     {
         // Print Session/User Info
@@ -92,12 +95,19 @@ int userInfo()
         // printf("ID:\t%s\t", user_info_ptr->ut_id);
         if (user_info_ptr->ut_type == USER_PROCESS)
         {
-            printf("%s\t", user_info_ptr->ut_user);
-            printf("%s\t", user_info_ptr->ut_line);
-            printf(" (%s)", user_info_ptr->ut_host);
-            printf("\n");
+            if (user_count <= user_count_max || show_all)
+            {
+                printf("%s\t", user_info_ptr->ut_user);
+                printf("%s\t", user_info_ptr->ut_line);
+                printf(" (%s)", user_info_ptr->ut_host);
+                printf("\n");
+            }
             user_count++;
         }
+    }
+    if (user_count > user_count_max && !show_all)
+    {
+        printf("... Showing %d of %d users, use --all to show all users\n", user_count_max, user_count);
     }
 
     endutent();
@@ -110,7 +120,7 @@ void graph(bool seq, int samples, double tdelay)
     printf("seq: %d samples: %d tdelay: %f\n", seq, samples, tdelay);
 }
 
-void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double tdelay)
+void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double tdelay, bool show_all)
 {
     printf("Samples: %d, Delay: %.2f\n", samples, tdelay);
 
@@ -124,13 +134,15 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
         for (int i = 0; i < samples; i++)
         {
             if (sys)
-                MemoryInfo();
+                printf("\n### Memory Usage ### (Phys.Used/Tot -- Virtual Used/Tot)\n"), MemoryInfo();
             if (user)
-                userInfo();
+                printf("\n### Session/Users ###\n"), userInfo(show_all);
             if (sys)
+                printf("\n### CPU Usage ###\n");
                 CPUInfo(tdelay, last_CPU_time_ptr);
-            sleep(tdelay);
             printf("\n");
+            // sleep(tdelay);
+            usleep(tdelay * 1000000);
         }
     }
     else
@@ -152,7 +164,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (user)
             {
                 printf("\n### Session/Users ###\n");
-                user_count = userInfo();
+                user_count = userInfo(show_all);
             }
             if (sys)
             {
@@ -160,7 +172,8 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
                 CPUInfo(tdelay, last_CPU_time_ptr);
             }
             printf("\n");
-            sleep(tdelay);
+            // sleep(tdelay);
+            usleep(tdelay * 1000000);
         }
     }
     if (sys)
@@ -175,104 +188,144 @@ int main(int argc, char *argv[])
     char *sys_key_alt = "--sys";
     char *user_key_alt = "--u";
     char *graph_key_alt = "--g";
+    char *all_user_key = "--all"; 
+    
 
     char *seq_key = "--sequential";
     char *samples_key = "--samples";
     char *delay_key = "--tdelay";
     char *seq_key_alt = "--seq";
 
+    int samples = 10;
+    double tdelay = 1;
+    bool seq = false;
+    bool sys = true;
+    bool user = true;
+    bool graphic = false;
+    bool show_all = false;
+
+    bool samples_set = false;
+    bool tdelay_set = false;
+
     // No arguments, print usage
     if (argc == 1)
     {
-        showOutput(true, true, false, false, 10, 1);
+        showOutput(sys, user, graphic, seq, samples, tdelay, show_all);
         return 1;
     }
-
-    if ((!strcmp(argv[1], sys_key) || !strcmp(argv[1], sys_key_alt))) // System Usage
+    else
     {
-        sysInfo();
-        return 0;
-    }
-
-    if ((!strcmp(argv[1], user_key) || !strcmp(argv[1], user_key_alt))) // User Usage
-    {
-        userInfo();
-        return 0;
-    }
-
-    if ((!strcmp(argv[1], graph_key) || !strcmp(argv[1], graph_key_alt))) // Graph
-    {
-        bool seq = false;
-        int samples = 10;
-        double tdelay = 1.0;
-
-        if (argc == 2) // No options
+        for (int i = 1; i < argc; i++)
         {
-            graph(false, samples, tdelay);
-            return 0;
-        }
-        else // argc > 2
-        {
-            for (int i = 2; i < argc; i++) // Keywords
+            if ((!strcmp(argv[i], sys_key) || !strcmp(argv[i], sys_key_alt)))
+                sys = true, user = false;
+            else if ((!strcmp(argv[i], user_key) || !strcmp(argv[i], user_key_alt)))
+                user = true, sys = false;
+            else if ((!strcmp(argv[i], graph_key) || !strcmp(argv[i], graph_key_alt)))
+                graphic = true;
+            else if ((!strcmp(argv[i], seq_key) || !strcmp(argv[i], seq_key_alt)))
+                seq = true;
+            else if ((!strcmp(argv[i], all_user_key)))
+                show_all = true;
+            else if (strstr(argv[i], samples_key))
             {
-                if (strstr(argv[i], seq_key) || strstr(argv[i], seq_key_alt))
+                char *token = strtok(argv[i], "=");
+                token = strtok(NULL, "=");
+                // Check if token is an int
+                if (token == NULL)
                 {
-                    seq = true;
+                    printf("Invalid argument: %s\n", argv[i]);
+                    printf("Usage: \"%s --graphics (--sequential) (--samples=N(int)) (--tdelay=T)\n\"", argv[0]);
+                    printf("Samples set to default of 10");
+                    // samples = 10;
                 }
-                else if (strstr(argv[i], samples_key))
+                samples = atoi(token);
+                if (samples < 1)
                 {
-                    char *token = strtok(argv[i], "=");
-                    token = strtok(NULL, "=");
-                    // Check if token is an int
-                    if (token == NULL)
-                    {
-                        printf("Invalid argument: %s\n", argv[i]);
-                        printf("Usage: %s --graphics (--sequential) (--samples=N(int)) (--tdelay=T)\n", argv[0]);
-                        return -1; // Invalid argument
-                    }
-                    samples = atoi(token);
+                    printf("Invalid argument: %s\n", argv[i]);
+                    printf("Samples must >= 1\n");
+                    printf("Usage: \"%s --graphics (--sequential) (--samples=N(int>1)) (--tdelay=T)\n\"", argv[0]);
+                    printf("Samples set to minimum of 1");
+                    samples = 1;
+                }
+                samples_set = true;
+            }
+            else if (strstr(argv[i], delay_key))
+            {
+                char *token = strtok(argv[i], "=");
+                token = strtok(NULL, "=");
+                // Check if token is a number
+                if (token == NULL)
+                {
+                    printf("Invalid argument: %s\n", argv[i]);
+                    printf("Usage: \"%s --graphics (--sequential) (--samples=N) (--tdelay=T(double))\"\n", argv[0]);
+                    printf("Delay set to default of 1\n");
+                    // tdelay = 1;
+                }
+                tdelay = atof(token);
+                if (tdelay < 0.1)
+                {
+                    printf("Invalid argument: %s\n", argv[i]);
+                    printf("Delay must >= 0.1\n");
+                    printf("Usage: \"%s --graphics (--sequential) (--samples=N) (--tdelay=T(double>0.1))\"\n", argv[0]);
+                    printf("Delay set to minimum of 0.1\n");
+                    tdelay = 0.1;
+                }
+                tdelay_set = true;
+            }
+
+            // Positional arguments
+            else if (isdigit(argv[i][0])) // Samples or Delay
+            {
+                if (samples_set == false)
+                {
+                    samples = atoi(argv[i]);
                     if (samples < 1)
                     {
-                        printf("Invalid argument: %s\n", argv[i]);
-                        printf("Samples must >= 1\n");
-                        printf("Usage: %s --graphics (--sequential) (--samples=N(int>1)) (--tdelay=T)\n", argv[0]);
-                        return -1; // Invalid argument
+                        printf("Invalid number of samples. Sample set to minimum of 1.\n");
+                        samples = 1;
                     }
+                    samples_set = true;
                 }
-                else if (strstr(argv[i], delay_key))
+                else if (tdelay_set == false)
                 {
-                    char *token = strtok(argv[i], "=");
-                    token = strtok(NULL, "=");
-                    // Check if token is a number
-                    if (token == NULL)
-                    {
-                        printf("Invalid argument: %s\n", argv[i]);
-                        printf("Usage: %s --graphics (--sequential) (--samples=N) (--tdelay=T(double))\n", argv[0]);
-                        return -1; // Invalid argument
-                    }
-                    tdelay = atof(token);
+                    tdelay = atof(argv[i]);
                     if (tdelay < 0.1)
                     {
-                        printf("Invalid argument: %s\n", argv[i]);
-                        printf("Delay must >= 0.1\n");
-                        printf("Usage: %s --graphics (--sequential) (--samples=N) (--tdelay=T(double>0.1))\n", argv[0]);
-                        return -1; // Invalid argument
+                        printf("Invalid delay. Delay set to minimum of 0.1.\n");
+                        tdelay = 0.1;
                     }
+                    tdelay_set = true;
                 }
                 else
                 {
-                    printf("Invalid argument: %s\n", argv[i]);
-                    printf("Usage: %s --graphics (--sequential) (--samples=N) (--tdelay=T)\n", argv[0]);
-                    return -1; // Invalid argument
+                    printf("Invalid *positional* argument: %s\n", argv[i]);
+                    printf("Usage: \"%s pos_arg_1 pos_arg_2\"\n", argv[0]);
+                    printf("Samples set to default of 10\n");
+                    printf("Delay set to default of 1\n");
+                    // samples = 10;
+                    // tdelay = 1;
                 }
             }
-
-            graph(seq, samples, tdelay);
+            else if (argv[i][0] == '.' && !tdelay_set) // Tdelay is float num
+            {
+                    tdelay = atof(argv[i]);
+                    if (tdelay < 0.1)
+                    {
+                        printf("Invalid delay. Delay set to minimum of 0.1.\n");
+                        tdelay = 0.1;
+                    }
+                    tdelay_set = true;
+            }
+            else
+            {
+                printf("Invalid argument: %s\n", argv[i]);
+                printf("Usage: \"%s --graphics (--sequential) (--samples=N) (--tdelay=T)\n\"", argv[0]);
+                printf("Can't help you set them to default this time :( I totally didn't understand which ones you wanted to change.\n");
+            }
         }
-        return 0;
     }
 
-    printf("Invalid argument: %s\n", argv[1]);
-    printf("Usage: %s [arguments] [options]\n", argv[0]);
-    return -1; // Invalid argument
+    showOutput(sys, user, graphic, seq, samples, tdelay, show_all);
+    return 0;
 }
