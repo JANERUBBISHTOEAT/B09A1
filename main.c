@@ -13,7 +13,10 @@
 #include <paths.h>
 #include <unistd.h>
 
-void MemoryInfo()
+#define _MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define _MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+void MemoryInfo(bool graphic, double tdelay, double *last_Mem)
 {
     // printf("### Memory Usage ###\n");
 
@@ -21,15 +24,63 @@ void MemoryInfo()
     sysinfo(&mem_info);
 
     // Current / Total (Physical) Memory Usage
-    printf("%5.2f GB / %5.2f GB --- ", (mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0,
-           mem_info.totalram / 1024.0 / 1024.0 / 1024.0);
+    double mem_phy_used = (double)(mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0;
+    double mem_phy_total = (double)(mem_info.totalram) / 1024.0 / 1024.0 / 1024.0;
+    // printf("%5.2f GB / %5.2f GB --- ", (mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0,
+    //        mem_info.totalram / 1024.0 / 1024.0 / 1024.0);
 
     // Current / Total (Physical + Swap) Memory Usage
-    printf("%5.2f GB / %5.2f GB\n", (mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0,
-           (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
+    double mem_vir_used = (double)(mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0;
+    double mem_vir_total = (double)(mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0;
+    // printf("%5.2f GB / %5.2f GB\n", (mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0,
+    //        (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
+
+    if (*last_Mem == 0.0) // First time running the function
+    {
+        *(last_Mem) = (double)(mem_phy_used);
+        return;
+    }
+
+    if (graphic)
+    {
+        double change_rate = (mem_phy_used - *last_Mem) / *last_Mem;
+        int bar_length = 100;
+        int bar_length_change = abs((int)(change_rate * bar_length));
+        int bar_length_for = bar_length_change;
+        char bar_char_pos = '#';
+        char bar_char_neg = ':';
+        char bar_char = (change_rate > 0) ? bar_char_pos : bar_char_neg;
+
+        printf("%5.2f GB / %5.2f GB --- ", mem_phy_used, mem_phy_total);
+        printf("%5.2f GB / %5.2f GB\t|", mem_vir_used, mem_vir_total);
+        // printf("leng: %lf - %d", change_rate, bar_length_change);
+
+        if (bar_length_change == 0)
+        {
+            bar_length_for = 1;
+            if (change_rate > 0)
+                bar_char = 'o';
+            else
+                bar_char = '@';
+        }
+        for (int i = 0; i < bar_length_for; i++)
+        {
+            putchar(bar_char);
+        }
+        if (bar_length_change != 0)
+            (bar_length_change > 0) ? (putchar('*')) : (putchar('@'));
+        printf("| %5.4f%%\n", change_rate * 100.0);
+
+        *last_Mem = mem_phy_used;
+    }
+    else
+    {
+        printf("%5.2f GB / %5.2f GB --- ", mem_phy_used, mem_phy_total);
+        printf("%5.2f GB / %5.2f GB\n", mem_vir_used, mem_vir_total);
+    }
 }
 
-void CPUInfo(double tdelay, int *last_CPU_time_ptr)
+void CPUInfo(double tdelay, int *last_CPU_time_ptr, bool graphic, double *last_CPU)
 {
     // printf("### CPU Usage ###\n");
 
@@ -43,20 +94,37 @@ void CPUInfo(double tdelay, int *last_CPU_time_ptr)
     int system_time, user_time, idle_time;
     fscanf(f, "cpu %d %d %d %d", &user_time, &tmp, &system_time, &idle_time);
     fclose(f);
-    printf("sys=%d, user=%d, idle=%d\n", system_time, user_time, idle_time);
-    printf("last sys=%d, last user=%d, last idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
-    printf("delta sys=%d, delta user=%d, delta idle=%d\n", system_time - last_CPU_time_ptr[0], user_time - last_CPU_time_ptr[1], idle_time - last_CPU_time_ptr[2]);
-    printf("total cpu use = %5.4f%%\n", (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1]) /
-     (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0);
+    printf("sys=%d\tuser=%d\tidle=%d\n", system_time, user_time, idle_time);
+    printf("last sys=%d\tlast user=%d\tlast idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
+    printf("delta sys=%d\tdelta user=%d\tdelta idle=%d\n", system_time - last_CPU_time_ptr[0], user_time - last_CPU_time_ptr[1], idle_time - last_CPU_time_ptr[2]);
+    double current_cpu = (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1]) /
+     (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0;
+    printf("total cpu use = %5.4f%%\n\n", current_cpu);
     last_CPU_time_ptr[0] = system_time;
     last_CPU_time_ptr[1] = user_time;
     last_CPU_time_ptr[2] = idle_time;
 
-
-    // // Get total CPU usage
-    // struct rusage usage;
-    // getrusage(RUSAGE_SELF, &usage);
-    // printf("total cpu use = %5.2f%%\n", usage.stime.tv_usec
+    if (graphic)
+    {
+        double change_rate = (current_cpu - *last_CPU) / *last_CPU * 100.0;
+        int bar_length = 10;
+        int bar_length_change = abs(change_rate / 100.0 * bar_length);
+        char bar_char_pos = '|';
+        char bar_char_neg = '-';
+        char bar_char = (change_rate > 0) ? bar_char_pos : bar_char_neg;
+        printf("change: %lf - %lf\n", current_cpu, *last_CPU);
+        printf("change rate: %d\n", bar_length_change);
+        for (int i = 0; i < _MIN(bar_length_change, bar_length); i++)
+        {
+            putchar(bar_char);
+        }
+        for (int i = 0; i < bar_length - bar_length_change; i++)
+        {
+            putchar(' ');
+        }
+        printf(" %5.4f%%\n", change_rate);
+    }
+    *last_CPU = current_cpu;
 }
 
 void sysInfo()
@@ -82,7 +150,7 @@ int userInfo(bool show_all)
     setutent();
 
     int user_count = 0;
-    int user_count_max = 10;
+    int user_count_max = 5;
     while ((user_info_ptr = getutent()) != NULL)
     {
         // Print Session/User Info
@@ -114,12 +182,6 @@ int userInfo(bool show_all)
     return user_count;
 }
 
-void graph(bool seq, int samples, double tdelay)
-{
-    // testing args
-    printf("seq: %d samples: %d tdelay: %f\n", seq, samples, tdelay);
-}
-
 void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double tdelay, bool show_all)
 {
     printf("Samples: %d, Delay: %.2f\n", samples, tdelay);
@@ -127,19 +189,24 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
     // Get first CPU time
     int last_CPU_time[3]={0,0,0};
     int *last_CPU_time_ptr = last_CPU_time;
-    CPUInfo(tdelay, last_CPU_time_ptr);
+    double last_CPU = 0;
+    CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
+
+    // Get first memory info
+    double last_Mem = 0;
+    MemoryInfo(graphic, tdelay, &last_Mem);
 
     if (seq)
     {
         for (int i = 0; i < samples; i++)
         {
             if (sys)
-                printf("\n### Memory Usage ### (Phys.Used/Tot -- Virtual Used/Tot)\n"), MemoryInfo();
+                printf("\n### Memory Usage ### (Phys.Used/Tot -- Virtual Used/Tot)\n"), MemoryInfo(graphic, tdelay, &last_Mem);
             if (user)
                 printf("\n### Session/Users ###\n"), userInfo(show_all);
             if (sys)
                 printf("\n### CPU Usage ###\n");
-                CPUInfo(tdelay, last_CPU_time_ptr);
+                CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
             printf("\n");
             // sleep(tdelay);
             usleep(tdelay * 1000000);
@@ -157,7 +224,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             {
                 printf("\n### Memory Usage ### (Phys.Used/Tot -- Virtual Used/Tot)\n");
                 printf("\033[%dB", i + 1); // Go down (i + 1) lines (Already printed i lines)
-                MemoryInfo();
+                MemoryInfo(graphic, tdelay, &last_Mem);
                 for (int j = 0; j < samples - i - 1; j++)
                     printf("\n");
             }
@@ -169,7 +236,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (sys)
             {
                 printf("\n### CPU Usage ###\n");
-                CPUInfo(tdelay, last_CPU_time_ptr);
+                CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
             }
             printf("\n");
             // sleep(tdelay);
