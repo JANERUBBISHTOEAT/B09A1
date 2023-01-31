@@ -20,33 +20,36 @@ void MemoryInfo()
     sysinfo(&mem_info);
 
     // Current / Total (Physical) Memory Usage
-    printf("%5.2f GB / %5.2f GB --- ", (mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0, 
-            mem_info.totalram / 1024.0 / 1024.0 / 1024.0);
-    
+    printf("%5.2f GB / %5.2f GB --- ", (mem_info.totalram - mem_info.freeram) / 1024.0 / 1024.0 / 1024.0,
+           mem_info.totalram / 1024.0 / 1024.0 / 1024.0);
+
     // Current / Total (Physical + Swap) Memory Usage
-    printf("%5.2f GB / %5.2f GB\n", (mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0, 
-            (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
+    printf("%5.2f GB / %5.2f GB\n", (mem_info.totalram - mem_info.freeram + mem_info.totalswap - mem_info.freeswap) / 1024.0 / 1024.0 / 1024.0,
+           (mem_info.totalram + mem_info.totalswap) / 1024.0 / 1024.0 / 1024.0);
 }
 
-void CPUInfo(double tdelay)
+void CPUInfo(double tdelay, int *last_CPU_time_ptr)
 {
     // printf("### CPU Usage ###\n");
-    // Template:
-    // Number of cores: 4 
-    // total cpu use = 0.00%
 
+    // Get total number of cores
+    int cores = sysconf(_SC_NPROCESSORS_ONLN);
+    printf("Number of cores: %d\n", cores);
+
+    // Get CPU usage
     FILE *f = fopen("/proc/stat", "r");
     int tmp;
     int system_time, user_time, idle_time;
     fscanf(f, "cpu %d %d %d %d", &user_time, &tmp, &system_time, &idle_time);
     fclose(f);
     printf("sys=%d, user=%d, idle=%d\n", system_time, user_time, idle_time);
-    printf("total cpu use = %5.2f%%\n", (double)((system_time + user_time) / (system_time + user_time + idle_time) * 100));
-    
+    printf("last sys=%d, last user=%d, last idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
+    printf("total cpu use = %5.4f%%\n", (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1]) /
+     (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0);
+    last_CPU_time_ptr[0] = system_time;
+    last_CPU_time_ptr[1] = user_time;
+    last_CPU_time_ptr[2] = idle_time;
 
-    // // Get total number of cores
-    // int cores = sysconf(_SC_NPROCESSORS_ONLN);
-    // printf("Number of cores: %d\n", cores);
 
     // // Get total CPU usage
     // struct rusage usage;
@@ -101,7 +104,6 @@ int userInfo()
     return user_count;
 }
 
-
 void graph(bool seq, int samples, double tdelay)
 {
     // testing args
@@ -112,6 +114,11 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
 {
     printf("Samples: %d, Delay: %.2f\n", samples, tdelay);
 
+    // Get first CPU time
+    int last_CPU_time[3]={0,0,0};
+    int *last_CPU_time_ptr = last_CPU_time;
+    CPUInfo(tdelay, last_CPU_time_ptr);
+
     if (seq)
     {
         for (int i = 0; i < samples; i++)
@@ -121,7 +128,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (user)
                 userInfo();
             if (sys)
-                CPUInfo(tdelay);
+                CPUInfo(tdelay, last_CPU_time_ptr);
             sleep(tdelay);
             printf("\n");
         }
@@ -130,6 +137,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
     {
         printf("\033[2J"); // Clear screen
         int user_count = 0;
+
         for (int i = 0; i < samples; i++)
         {
             printf("\033[H"); // Go to (0, 0)
@@ -149,7 +157,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (sys)
             {
                 printf("\n### CPU Usage ###\n");
-                CPUInfo(tdelay);
+                CPUInfo(tdelay, last_CPU_time_ptr);
             }
             printf("\n");
             sleep(tdelay);
