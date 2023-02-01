@@ -46,7 +46,6 @@ void MemoryInfo(bool graphic, double tdelay, double *last_Mem)
         double change_rate = (mem_phy_used - *last_Mem) / *last_Mem;
         int bar_length = 100;
         int bar_length_change = abs((int)(change_rate * bar_length));
-        int bar_length_for = bar_length_change;
         char bar_char_pos = '#';
         char bar_char_neg = ':';
         char bar_char = (change_rate > 0) ? bar_char_pos : bar_char_neg;
@@ -57,13 +56,13 @@ void MemoryInfo(bool graphic, double tdelay, double *last_Mem)
 
         if (bar_length_change == 0)
         {
-            bar_length_for = 1;
             if (change_rate > 0)
                 bar_char = 'o';
             else
                 bar_char = '@';
+            putchar(bar_char);
         }
-        for (int i = 0; i < bar_length_for; i++)
+        for (int i = 0; i < bar_length_change; i++)
         {
             putchar(bar_char);
         }
