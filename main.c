@@ -10,8 +10,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <utmp.h>
-#include <paths.h>
 #include <unistd.h>
+#include <paths.h>
+// #include <time.h>
 
 #define _MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define _MAX(a, b) (((a) > (b)) ? (a) : (b))
@@ -97,7 +98,7 @@ void CPUInfo(double tdelay, int *last_CPU_time_ptr, bool graphic, double *last_C
     printf("last sys=%d\tlast user=%d\tlast idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
     printf("delta sys=%d\tdelta user=%d\tdelta idle=%d\n", system_time - last_CPU_time_ptr[0], user_time - last_CPU_time_ptr[1], idle_time - last_CPU_time_ptr[2]);
     double current_cpu = (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1]) /
-     (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0;
+                         (double)(system_time - last_CPU_time_ptr[0] + user_time - last_CPU_time_ptr[1] + idle_time - last_CPU_time_ptr[2]) * 100.0;
     printf("total cpu use = %5.4f%%\n\n", current_cpu);
     last_CPU_time_ptr[0] = system_time;
     last_CPU_time_ptr[1] = user_time;
@@ -186,7 +187,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
     printf("Samples: %d, Delay: %.2f\n", samples, tdelay);
 
     // Get first CPU time
-    int last_CPU_time[3]={0,0,0};
+    int last_CPU_time[3] = {0, 0, 0};
     int *last_CPU_time_ptr = last_CPU_time;
     double last_CPU = 0;
     CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
@@ -204,8 +205,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (user)
                 printf("\n### Session/Users ###\n"), userInfo(show_all);
             if (sys)
-                printf("\n### CPU Usage ###\n");
-                CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
+                printf("\n### CPU Usage ###\n"), CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
             printf("\n");
             // sleep(tdelay);
             usleep(tdelay * 1000000);
@@ -214,7 +214,6 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
     else
     {
         printf("\033[2J"); // Clear screen
-        int user_count = 0;
 
         for (int i = 0; i < samples; i++)
         {
@@ -230,7 +229,7 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (user)
             {
                 printf("\n### Session/Users ###\n");
-                user_count = userInfo(show_all);
+                userInfo(show_all);
             }
             if (sys)
             {
@@ -254,8 +253,7 @@ int main(int argc, char *argv[])
     char *sys_key_alt = "--sys";
     char *user_key_alt = "--u";
     char *graph_key_alt = "--g";
-    char *all_user_key = "--all"; 
-    
+    char *all_user_key = "--all";
 
     char *seq_key = "--sequential";
     char *samples_key = "--samples";
@@ -375,13 +373,13 @@ int main(int argc, char *argv[])
             }
             else if (argv[i][0] == '.' && !tdelay_set) // Tdelay is float num
             {
-                    tdelay = atof(argv[i]);
-                    if (tdelay < 0.1)
-                    {
-                        printf("Invalid delay. Delay set to minimum of 0.1.\n");
-                        tdelay = 0.1;
-                    }
-                    tdelay_set = true;
+                tdelay = atof(argv[i]);
+                if (tdelay < 0.1)
+                {
+                    printf("Invalid delay. Delay set to minimum of 0.1.\n");
+                    tdelay = 0.1;
+                }
+                tdelay_set = true;
             }
             else
             {
