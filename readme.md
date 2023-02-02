@@ -1,11 +1,11 @@
-# CSCB09
+# <p id="cscb09">CSCB09</p>
 
-## Assignment 1: System Monitoring Tool
+## <p id="assignment-1-system-monitoring-tool">Assignment 1: System Monitoring Tool</p>
 
 *Zheyuan Wei*
-*Date Updated: 2023-02-01*
+*Date Updated: 2023-02-02*
 
-### Table of Contents
+### <p id="table-of-contents">Table of Contents</p>
 
 - [CSCB09](#cscb09)
   - [Assignment 1: System Monitoring Tool](#assignment-1-system-monitoring-tool)
@@ -19,10 +19,15 @@
       - [`MemoryInfo()`](#memoryinfo)
       - [`userInfo()`](#userinfo)
       - [`sysInfo()`](#sysinfo)
-      - [Other functions](#other-functions)
+      - [Other Functions](#other-functions)
     - [Introduction](#introduction)
 
-### Things to Note
+
+---
+
+<div style="page-break-after: always;"></div>
+
+### <p id="things-to-note">Things to Note</p>
 
 - How did you  solve the problem:
   - See [Function Documentation](#function-documentation) for more details.
@@ -40,7 +45,7 @@
 
 ---
 
-### Major Changes
+### <p id="major-changes">Major Changes</p>
 
 - Argument Handling
   - ~~Now `--tdelay` can be set to any floating point number greater than 0.1, rather than only integers. The default value is 1.0. (For implementation details, see [Function Documentation](#function-documentation))~~ (This is no longer supported since `usleep()` is not supported in c99)
@@ -144,11 +149,11 @@
 
 ---
 
-### Function Documentation
+### <p id="function-documentation">Function Documentation</p>
 
 This documentation also includes the solution to the requirements of the assignment.
 
-#### `main()`
+#### <p id="main">`main()`</p>
 
 What does it do:
 
@@ -170,7 +175,7 @@ How did I do it:
             2. Then use `atoi` and `atof` to convert the positional argument to `int` and `float` respectively.
          2. Else, it is an invalid CLA, so the program will print out the usage message and continue with the default values (see [Major Changes](#major-changes) for more details).
 
-#### `showOutput()`
+#### <p id="showoutput">`showOutput()`</p>
 
 What does it do:
 
@@ -189,7 +194,7 @@ How did I do it:
   - For `seq == false`, the program will print out the information using the ESCape codes to refresh the screen. This is useful if the user wants to watch the output in real time. `ESC[2J` is used to clear the screen, and `ESC[#B` is used to move the cursor down by `#` lines, when printing Memory Info.
 - ~~As mentioned in the [Major Changes](#major-changes), the program is now able to handle `--tdelay` with support for floating point numbers. The program will use `usleep()` to wait for the specified time (in microseconds) before printing the sampling.~~ (This feature is removed. See [Major Changes](#major-changes) for more details.)
 
-#### `CPUInfo()`
+#### <p id="cpuinfo">`CPUInfo()`</p>
 
 What does it do:
 
@@ -235,7 +240,7 @@ Graphic Mode:
 
   > *Note that here the calculation has been simplified for simplicity.*
 
-#### `MemoryInfo()`
+#### <p id="memoryinfo">`MemoryInfo()`</p>
 
 What does it do:
 
@@ -261,7 +266,7 @@ How did I do it:
   (total + swap - free) / (total + swap) * 100
   ```
 
-#### `userInfo()`
+#### <p id="userinfo">`userInfo()`</p>
 
 What does it do:
 
@@ -272,7 +277,7 @@ How did I do it:
 
 - Use the `getutent()` function in `<utmpx.h>` to get the user info, and use the `utmp` struct to store the info.
 
-#### `sysInfo()`
+#### <p id="sysinfo">`sysInfo()`</p>
 
 What does it do:
 
@@ -283,7 +288,7 @@ How did I do it:
 
 - Use the `utsname()` function in `<sys/utsname.h>` to get the system info.
 
-#### Other functions
+#### <p id="other-functions">Other Functions</p>
 
 No other functions but the following macros are used in the program:
 
@@ -296,7 +301,7 @@ No other functions but the following macros are used in the program:
 
 ---
 
-### Introduction
+### <p id= "introduction">Introduction</p>
 
 **This program is slightly different from the original assignment for both ease of programming*
 
