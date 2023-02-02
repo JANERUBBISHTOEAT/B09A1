@@ -3,7 +3,7 @@
 ## Assignment 1: System Monitoring Tool
 
 *Zheyuan Wei*
-*Date Updated: 2023-01-31*
+*Date Updated: 2023-02-01*
 
 ### Table of Contents
 
@@ -29,30 +29,40 @@
 - An overview of the functions (including documentation):
   - See [Function Documentation](#function-documentation) for more details.
 - How to run (use) your program:
-  - See [Major Changes](#major-changes-from-the-original-assignment) for more details. It is basically the same as the original assignment other than the changes listed below.
+  - See [Major Changes](#major-changes) for more details. It is basically the same as the original assignment other than the changes listed below.
+  - This program is highly tolerant to invalid arguments. **When you input an invalid argument to test the program, scroll up to see the error message.** The program will ignore the invalid argument and continue.
+  - If the printed output is too long, it may cause the terminal to scroll and make a mess with the ESC sequence. In this case, you can try increasing the terminal size or decrease the number of samples.
+  - See the reduced argument keys below (also available in the [Major Changes](#major-changes) section):
+    - `--system` is equivalent to `--sys`
+    - `--user` is equivalent to `--u`
+    - `--graphics` is equivalent to `--g`
+    - `--sequential` is equivalent to `--seq`
 
 ---
 
 ### Major Changes
 
 - Argument Handling
-  - Now `--tdelay` can be set to any floating point number greater than 0.1, rather than only integers. The default value is 1.0. (For implementation details, see [Function Documentation](#function-documentation))
+  - ~~Now `--tdelay` can be set to any floating point number greater than 0.1, rather than only integers. The default value is 1.0. (For implementation details, see [Function Documentation](#function-documentation))~~ (This is no longer supported since `usleep()` is not supported in c99)
   - Now the program can handle arguments in any order.
     For example:
     `./xxx --system --user --graphics --sequential --samples=10 --tdelay=1`
     is equivalent to:
-    `./xxx --sequential --graphics --user --system --tdelay=1 --samples=10`.
+    `./xxx --sequential --graphics --system --user --tdelay=1 --samples=10`.
   - Now the program can handle multiple arguments of the same type.
     For example:
     `./xxx --system --user --system --user --system --user`
     is equivalent to:
     `./xxx --system --user`
 
+    > *A few things to note:*
+    > *The `--system` and `--user` arguments **are mutually exclusive**. If both are present, the program will follow the last (rightmost in CLA) argument of the same type and ignore the rest.*
+
     Another example:
     `./xxx 10 1 --samples=5 --tdelay=2`
     is equivalent to:
     `./xxx --samples=5 --tdelay=2`
-    and will finally be set to `samples:10 tdelay:1`.
+    and will finally be set to `samples:5 tdelay:2`.
 
     > *There are mainly two reasons for this change:*
     >
@@ -71,7 +81,8 @@
     - If the argument is not recognized, the program will  print out the usage, then ignore it and continue.
     - If the argument is recognized but the value cannot be recognized, the program will print out the usage message and set the value to the default value.
     - If the argument is recognized but the value is not valid (i.e., out of range), the program will print out the value range and set the value to the minimum (after thinking about it for a while, I decided to set no upper bound for the arguments. Only the lower bound is set).
-      - If the argument is `--tdelay` and is less than 0.1, the value is set to 0.1.
+      - ~~If the argument is `--tdelay` and is less than 0.1, the value is set to 0.1.~~ (This is no longer supported since `usleep()` is not supported in c99)
+      - If the argument is `--tdelay` and is less than 1, the value is set to 1.
       - If the argument is `--samples` and is less than 1, the value is set to 1.
 - User Info Folding:
   - The lines of user info are limited to 5 (constant `user_count_max` in `userInfo()`). If there are more than 5 users, the program will fold the extra users into the last line like below:
@@ -176,7 +187,7 @@ How did I do it:
 - `seq` is a boolean variable indicating whether the output should be containing the ESCape codes (in the program, Linux ESCape codes are used to either refresh the screen or move the cursor). This function has two different part of code for `seq == true` and `seq == false`.
   - For `seq == true`, the program will print out the information sequentially without refreshing the screen. This is useful if the user wants to redirect the output to a file.
   - For `seq == false`, the program will print out the information using the ESCape codes to refresh the screen. This is useful if the user wants to watch the output in real time. `ESC[2J` is used to clear the screen, and `ESC[#B` is used to move the cursor down by `#` lines, when printing Memory Info.
-- As mentioned in the [Major Changes](#major-changes), the program is now able to handle `--tdelay` with support for floating point numbers. The program will use `usleep()` to wait for the specified time (in microseconds) before printing the sampling.
+- ~~As mentioned in the [Major Changes](#major-changes), the program is now able to handle `--tdelay` with support for floating point numbers. The program will use `usleep()` to wait for the specified time (in microseconds) before printing the sampling.~~ (This feature is removed. See [Major Changes](#major-changes) for more details.)
 
 #### `CPUInfo()`
 
@@ -201,7 +212,25 @@ How did I do it:
 - The calculation of CPU usage is :
 
   ```C
-  (delta of( user + system )) / (delta of( user + system + idle )) * 100
+    (delta of( user + system )) / (delta of( user + system + idle )) * 100
+  ```
+
+  > *Note that here the calculation has been simplified for simplicity.*
+
+Graphic Mode:
+
+- Use `if (graphic)` to check whether the graphic mode is enabled.
+- Calculate the rate of change of CPU usage compared to the last sampling using the formula:
+
+  ```C
+    double change_rate = (current_cpu - *last_CPU) / *last_CPU * 100.0;
+  ```
+
+  where the `current_cpu` is calculated using the formula:
+
+  ```C
+  double current_cpu = (delta_system_time + delta_user_time) /
+  (delta_system_time + delta_user_time + delta_idle_time) * 100.0;
   ```
 
   > *Note that here the calculation has been simplified for simplicity.*

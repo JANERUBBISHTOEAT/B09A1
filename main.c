@@ -86,7 +86,6 @@ void CPUInfo(double tdelay, int *last_CPU_time_ptr, bool graphic, double *last_C
 
     // Get total number of cores
     int cores = sysconf(_SC_NPROCESSORS_ONLN);
-    printf("Number of cores: %d\n", cores);
 
     // Get CPU usage
     FILE *f = fopen("/proc/stat", "r");
@@ -94,6 +93,14 @@ void CPUInfo(double tdelay, int *last_CPU_time_ptr, bool graphic, double *last_C
     int system_time, user_time, idle_time;
     fscanf(f, "cpu %d %d %d %d", &user_time, &tmp, &system_time, &idle_time);
     fclose(f);
+    if (last_CPU_time_ptr[0] == 0 && last_CPU_time_ptr[1] == 0 && last_CPU_time_ptr[2] == 0)
+    {
+        last_CPU_time_ptr[0] = system_time;
+        last_CPU_time_ptr[1] = user_time;
+        last_CPU_time_ptr[2] = idle_time;
+        return;
+    }
+    printf("Number of cores: %d\n", cores);
     printf("sys=%d\tuser=%d\tidle=%d\n", system_time, user_time, idle_time);
     printf("last sys=%d\tlast user=%d\tlast idle=%d\n", last_CPU_time_ptr[0], last_CPU_time_ptr[1], last_CPU_time_ptr[2]);
     printf("delta sys=%d\tdelta user=%d\tdelta idle=%d\n", system_time - last_CPU_time_ptr[0], user_time - last_CPU_time_ptr[1], idle_time - last_CPU_time_ptr[2]);
@@ -207,8 +214,8 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
             if (sys)
                 printf("\n### CPU Usage ###\n"), CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
             printf("\n");
-            // sleep(tdelay);
-            usleep(tdelay * 1000000);
+            sleep((int)tdelay);
+            // usleep(tdelay * 1000000);
         }
     }
     else
@@ -237,8 +244,8 @@ void showOutput(bool sys, bool user, bool graphic, bool seq, int samples, double
                 CPUInfo(tdelay, last_CPU_time_ptr, graphic, &last_CPU);
             }
             printf("\n");
-            // sleep(tdelay);
-            usleep(tdelay * 1000000);
+            sleep((int)tdelay);
+            // usleep(tdelay * 1000000);
         }
     }
     if (sys)
@@ -327,13 +334,13 @@ int main(int argc, char *argv[])
                     // tdelay = 1;
                 }
                 tdelay = atof(token);
-                if (tdelay < 0.1)
+                if (tdelay < 1)
                 {
                     printf("Invalid argument: %s\n", argv[i]);
                     printf("Delay must >= 0.1\n");
-                    printf("Usage: \"%s --graphics (--sequential) (--samples=N) (--tdelay=T(double>0.1))\"\n", argv[0]);
-                    printf("Delay set to minimum of 0.1\n");
-                    tdelay = 0.1;
+                    printf("Usage: \"%s --graphics (--sequential) (--samples=N) (--tdelay=T(double>1))\"\n", argv[0]);
+                    printf("Delay set to minimum of 1\n");
+                    tdelay = 1;
                 }
                 tdelay_set = true;
             }
@@ -354,10 +361,10 @@ int main(int argc, char *argv[])
                 else if (tdelay_set == false)
                 {
                     tdelay = atof(argv[i]);
-                    if (tdelay < 0.1)
+                    if (tdelay < 1)
                     {
-                        printf("Invalid delay. Delay set to minimum of 0.1.\n");
-                        tdelay = 0.1;
+                        printf("Invalid delay. Delay set to minimum of 1.\n");
+                        tdelay = 1;
                     }
                     tdelay_set = true;
                 }
@@ -371,16 +378,16 @@ int main(int argc, char *argv[])
                     // tdelay = 1;
                 }
             }
-            else if (argv[i][0] == '.' && !tdelay_set) // Tdelay is float num
-            {
-                tdelay = atof(argv[i]);
-                if (tdelay < 0.1)
-                {
-                    printf("Invalid delay. Delay set to minimum of 0.1.\n");
-                    tdelay = 0.1;
-                }
-                tdelay_set = true;
-            }
+            // else if (argv[i][0] == '.' && !tdelay_set) // Tdelay is float num
+            // {
+            //     tdelay = atof(argv[i]);
+            //     if (tdelay < 0.1)
+            //     {
+            //         printf("Invalid delay. Delay set to minimum of 0.1.\n");
+            //         tdelay = 0.1;
+            //     }
+            //     tdelay_set = true;
+            // }
             else
             {
                 printf("Invalid argument: %s\n", argv[i]);
